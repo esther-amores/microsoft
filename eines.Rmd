@@ -1,7 +1,7 @@
 ---
-title: "Preparació de les eines: Selecció del llindar"
+title: "Preparació de les eines: Estimació d'un quantil elevat"
 author: "Esther Amores, Anna Costa i Oscar Ortiz"
-date: "28/5/2021"
+date: "2/6/2021"
 output: pdf_document
 ---
 
@@ -20,8 +20,7 @@ data("danish", package="evir")
 ```
 
 
-# Apartat 1
-#### Programeu en `R` la funció que dóna l'estimació màxim versemblant dels paràmetres d'una power-law. Llegiu la secció 3.1 de Clauset.
+**Programem en `R` la funció que dóna l'estimació màxim versemblant dels paràmetres d'una power-law.**
 
 Creem una funció anomenada `ePL` que retorna $\hat{\mu}$, que és el valor mínim de les dades, el paràmetre estimat $\alpha$ i el valor de la log-likelihood.
 
@@ -56,9 +55,7 @@ ePL(danish)
 ```
 
 
-
-# Apartat 2
-#### Construïu un generador de nombres aleatoris per a la distribució power-law composant el generador d'uniformes, U(0,1), amb la funció quantil.
+**Construïm un generador de nombres aleatoris per a la distribució power-law composant el generador d'uniformes, U(0,1), amb la funció quantil.**
 
 La funció de distribució d'una power-law és: \[F(x)=1-\left(\frac{x}{\mu}\right)^{-\alpha}\]
 
@@ -85,45 +82,35 @@ rgpl <- function(mu, alpha, n, seed){
 ```
 
 
+\newpage
 
-# Apartat 3
-#### Simuleu dades power-law amb la funció de l'apartat 1 i verifiqueu que la funció dóna l'estimació correcta, utilitzant el test de Kolmogorov-Smirnov:
+
+**Validem les dades amb el test de Kolmogorov-Smirnov**
+
+```{r}
+mu <- 1
+al <- 1
+
+# Simulació d'un vector de dades aleatòries
+x <- rgpl(mu=mu, alpha=al, n=10000, seed=1)
+
+# Estadístic de contrast
+X <- sort(x)
+n <- length(X)
+F <- 1-(X/mu)^(-al)
+E <- seq(1:n)/n
+D <- ks.test(x=F, y=E)$statistic[[1]]
+est.con <- sqrt(n)*D 
+ 
+print(sprintf("est.con=%.3f, D=%.3f", est.con, D))
+```
+
+Veiem que per qualsevol dels valors d'$\alpha$ el resultat de l'estadístic de Kolmogorov-Smirnov, $D$, és el mateix (és a dir: 0.009). 
+
+
+**Simulem dades d'una distribució power-law amb la funció de l'apartat anterior i verifiquem que la funció dóna l'estimació correcta, utilitzant el test de Kolmogorov-Smirnov.**
 
 \[D_n=\sup_{x_m<x<\infty} \vert F_n(x)-F_\alpha(x) \vert\]
-
-<!-- Generem valors d'una distribució power-law amb paràmetres determinats $\alpha$ i $\mu$: -->
-
-<!-- ```{r} -->
-<!-- mu <- 1 -->
-<!-- alpha <- 0.1 -->
-<!-- x <- rgpl(mu=mu, alpha=alpha, n=1000, seed=1) -->
-<!-- ``` -->
-
-
-<!-- Calculem l'estadístic de contrast $D$: -->
-
-<!-- ```{r} -->
-<!-- X <- sort(x) -->
-<!-- n <- length(X) -->
-<!-- F <- 1-(X/mu)^(-alpha)  -->
-<!-- E <- seq(1:n)/n -->
-<!-- D <- max(abs(E-F)) -->
-<!-- ``` -->
-
-
-<!-- Si $X$ és un vector aleatori de dades $\{x_1,x_2,\dots,x_n\}$ i $X \sim PL(\alpha, \mu)$, el test d'hipòtesis que avaluarem és el següent: -->
-
-<!-- \[\begin{cases} -->
-<!--   H_0 &= X \sim PL(\alpha, \mu) \\ -->
-<!--   H_1 &= H_0 \text{ falsa} -->
-<!-- \end{cases}\] -->
-
-<!-- Rebutjarem l'hipòtesi nul·la si $\sqrt{n}D_n>k_\alpha$ -->
-
-<!-- ```{r} -->
-<!-- sqrt(n)*D -->
-<!-- ``` -->
-
 
 En primer lloc, generem valors d'una distribució power-law amb paràmetres determinats $\alpha$ i $\mu$. Després, calculem l'estadístic de contrast $D$. Aleshores, si $X$ és un vector aleatori de dades $\{x_1,x_2,\dots,x_n\}$ i $X \sim PL(\alpha, \mu)$, el test d'hipòtesis que avaluarem és el següent:
 
@@ -137,36 +124,29 @@ Rebutjarem l'hipòtesi nul·la si $\sqrt{n}D_n>k_\alpha$.
 
 ```{r}
 mu <- 1
-alpha <- c(0.01, 0.05, 0.10)
+al <- 3
 
-for(alpha in c(0.01, 0.05, 0.10)){
-  # Simulació d'un vector de dades aleatòries
-  x <- rgpl(mu=mu, alpha=alpha, n=1000, seed=1)
-  # Estadístic de contrast
-  X <- sort(x)
-  n <- length(X)
-  F <- 1-(X/mu)^(-alpha) 
-  E <- seq(1:n)/n
-  D <- max(abs(E-F))
-  est.con <- sqrt(n)*D 
-  print(sprintf("alpha=%.2f, est.con=%.8f", alpha, est.con))
-}
+# Simulació d'un vector de dades aleatòries
+x <- rgpl(mu=mu, alpha=al, n=10000, seed=1)
+
+# Estadístic de contrast
+X <- sort(x)
+n <- length(X)
+F <- 1-(X/mu)^(-al) 
+E <- seq(1:n)/n
+D <- max(abs(E-F))
+est.con <- sqrt(n)*D 
+print(sprintf("est.con=%.8f, D=%.8f", est.con, D))
 ```
 
-| $\alpha$      |      0.10     |      0.05     |      0.01     |
-|---------------|:-------------:|:-------------:|:-------------:|
-| Punt crític   |      1.22     |      1.36     |      1.63     |
-| $\sqrt{n}D_n$ | $`r est.con`$ | $`r est.con`$ | $`r est.con`$ |
+| $\alpha$      |      1        |   
+|---------------|:-------------:|
+| Punt crític   |      1.22     | 
+| $\sqrt{n}D_n$ | $`r est.con`$ | 
 
 No tenim evidències per rebutjar la hipòtesi nul·la quan $\alpha=0.01, 0.05$ o $0.10$ perquè cap dels estadístics de contrast obtinguts superen el llindar $k_\alpha$. Per tant, les dades generades segueixen una distribució power-law amb parametres $\mu=1$, $\alpha=1$.
 
 
-# Apartat 4
-#### Programeu en `R` la funció que dóna el mètode de selecció del llindar seguint el que explica Clauset a la secció 3.3, basat en la distància de Kolmogorov-Smirnov, estadístic KS.
-
-
-# Apartat 5
-#### Ordeneu la mostra i calculeu per a cada valor considerat com origen la distància KS. L'estimació de $x_{min}$ és el valor que minimitza KS.
 
 
 
