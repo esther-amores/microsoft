@@ -1,19 +1,15 @@
-###########
-#  EINES  #
-###########
+###################################
+#  ESTIMACIÓ D'UN QUANTIL ELEVAT  #
+###################################
 
-## ----setup, include=FALSE------------------------------------------------------------------------------
-knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
-
-
-## Paquets-----------------------------------------------------------------------------------------------
+# Paquets
 library(poweRlaw)
 
-# Dades
+# Carreguem les dades
 data("danish", package="evir")
 data("nidd.thresh", package="evir")
 
-## Construcció de la distribució Power-Law --------------------------------------------------------------
+# Construcció de la distribució Power-Law
 dPL <- function(xdt, mu, alpha){
   return((alpha/mu)*((mu/xdt)^(alpha+1)))
 }
@@ -33,7 +29,7 @@ rPL <- function(mu, alpha, n, seed){
   return(x)
 }
 
-## Construcció de la funció ePL (estimació per MLE) -----------------------------------------------------
+# Construcció de la funció ePL (estimació per MLE)
 ePL <- function(xdt){
   xm <- min(xdt)
   xi <- mean(log(xdt/xm))
@@ -43,14 +39,11 @@ ePL <- function(xdt){
   list(min=xm, alpha=1/xi, lPL=lpl)
 }
 
-## Avaluació ePL a nidd.thresh i a danish (validació ePL) ---------------------------------------------------
+# Avaluació ePL a nidd.thresh i a danish (validació ePL)
 pars_nidd <- ePL(nidd.thresh)
 pars_danish <- ePL(danish)
 
-
-## Construcció de la funció per calcular 
-## l'estadistic de contrast de Kolmogrov-Smirnov 
-
+# Construcció de la funció per calcular l'estadistic de contrast de Kolmogrov-Smirnov 
 ks_statistic <- function(xdt, mu = min(xdt)){
   al <- ePL(xdt)$alpha
   X <- sort(xdt)
@@ -68,13 +61,11 @@ nidd_ks <- ks_statistic(nidd.thresh)
 print(sprintf("est.con=%.8f, D=%.8f", nidd_ks$est.con, nidd_ks$D))
 print(nidd_ks$est.con>k_al)
 
-
 danish_ks <- ks_statistic(danish)
 print(sprintf("est.con=%.8f, D=%.8f", danish_ks$est.con, danish_ks$D))
 print(danish_ks$est.con>k_al)
 
-## Validació de la funció rPL -------------------------------------------------------------------------------
-
+# Validació de la funció rPL
 mus <- c(1, 4, 5.5, 10, 48.4)
 als <- c(1, 3.5, 5, 10, 12.4)
 
@@ -83,7 +74,8 @@ al_est <- NULL
 val_mu_est <- NULL
 val_al_est <- NULL
 x <- NULL
-i = 1
+i <- 1
+
 for(mu in mus){
   for(al in als){
     x[[i]] <- rPL(mu=mu, alpha=al, n=10000, seed=1)
@@ -105,42 +97,35 @@ for(i in 1:length(x)){
   print(x_ks$est.con>k_al)
 }
 
-#Al obtenir tot es estadístics de contrast inferiors als diferents punts crítics podem dir que hem validat la nostra funció rPL.
+# Ja que hem obtingut tots els estadístics de contrast inferiors als diferents punts crítics podem dir que hem validat la nostra funció rPL.
 
-## Selecció del llindar -------------------------------------------------------
-
-selmin <- function(data){
-  n <- length(data)
-  mus <- unique(data)
-  dat <- numeric(length(mus))
-  z <- sort(data)
-  
-  for(i in 1:length(mus)){
-    mu <- mus[i] # escull la mu candidata
-    z1 <- z[z >= mu] # trunca les dades per sota d’aquest valor mu
-    dat[i] <- ks_statistic(z1, mu)$D # calcula l’estadistic KS
+# Selecció del llindar 
+selmin <- function(xd){
+  nn <- length(xd)
+  xd <- sort(xd)
+  dista <- numeric(nn)
+  for(k in 1:nn){
+    xdt <- xd[k:nn]
+    dista[k] <- ks_statistic(xdt)$D
   }
-  KS <- min(dat[dat >0], na.rm = TRUE) # troba el valor mes petit de D
-  xmin <- mus[which(dat==KS)] # troba el corresponent valor mu
-  omin <- which(dat==KS)
-  list(n = n, min = xmin, KS = KS, ordre = omin)
-}
+  omin <- which.min(dista)
+  xmin <- xd[omin]
+  KS <- dista[omin]
+  list(n=nn, min=xmin, KS=KS, ordre=omin)
+} 
 
 parset <- function(xdat){
-  n <- length(xdat)
+  nn <- length(xdat)
+  xdat <- sort(xdat)
   st <- selmin(xdat)
   xm <- st$min
-  nb <- st$ordre
-  na <- (n-nb+1)
-  z <- sort(xdat[xdat >= xm])
-  n <- length(z)
-  alpha <- ((1/n)*sum(log(z/xm)))^(-1) # obte la corresponent estimacio d’alpha
-  list(n = n, alpha = alpha, min = xm, ntail = na)
+  nb <- st$ordre-1
+  na <- nn-nb
+  al <- ePL(xdat[(nb+1):nn])$alpha
+  list(n=nn, alpha=al, min=xm, ntail=na)
 }
 
-
 parset(danish)
-
 
 plmag <- conpl$new(sort(danish))
 xmin_PL <- estimate_xmin(plmag)$xmin
@@ -148,18 +133,23 @@ plmag$setXmin(xmin_PL)
 estimate_pars(plmag)$pars - 1
 xmin_PL
 
-#############
-# MICROSOFT #
-#############
+
+#############################################################
+#  ANÀLISI DE LES DADES D'UNA EMPRESA QUE COTITZA AL NASDAQ #
+#############################################################
+
+# Empresa: MICROSOFT
+
+# Paquets
 library(quantmod)
 library(evir)
 library(ercv)
 
+# Carreguem les dades
 getSymbols("MSFT", from="2016-01-01", to="2020-12-31")
+
 names(MSFT)
 plot(MSFT$MSFT.Close, col="blue")
-
-#Descripció preus: ???
 
 # Preus
 preus <- MSFT$MSFT.Close
@@ -171,9 +161,8 @@ identical(as.numeric(na.omit(MSFT$MSFT.Close)), preus)
 ts.plot(preus, main="MICROSOFT prices", col="blue")
 length(preus)/5
 
-prices.ts = ts(preus, frequency=252, start=c(2016, 1), end=c(2020, 250))
+prices.ts <- ts(preus, frequency=252, start=c(2016, 1), end=c(2020, 250))
 plot(prices.ts, main="MICROSOFT (2016-2021)", col="blue")
-
 
 # Rendibilitats
 returns <- diff(log(preus))
@@ -181,16 +170,17 @@ returns <- diff(log(preus))
 mu <- mean(returns)
 sg <- sd(returns)
 
-#gráfic rendibilitats
+# Gràfic rendibilitats
 ts.plot(returns, main="Returns", col="red")
 
-# Calcul rendiment anual
+# Càlcul rendiment anual
 ma <- 250*mu 
-# calcul volatilitat
+
+# Càlcul volatilitat
 sa <- sqrt(250)*sg 
 sprintf("Rendibilitat anual: %.4f (%.2f %%) \n Volatilitat anual: %.4f (%.2f %%)", ma, ma*100, sa, sa*100)
 
-#Avalueu el nombre d’observacions que estan més enllà de la mitjana i tres desviacions estàndard
+# Avaluem el nombre d’observacions que estan més enllà de la mitjana i tres desviacions estàndard
 ts.plot(returns, main="Returns", col="red")
 abline(h=mu-3*sg, col="blue")
 abline(h=mu+3*sg, col="blue")
@@ -198,12 +188,12 @@ abline(h=mu+3*sg, col="blue")
 paste("Hi ha", length(returns[returns<mu-3*sg | returns>mu+3*sg]), 
       "observacions que están més enllá de la mitjana i 3 desviacions estàndard") 
 
-#Compareu-ho amb els valors que esperaríeu sota el model normal
+# Comparem amb els valors que esperaríem sota el model normal
 normal <- rnorm(length(returns), mu, sg)
 paste("Hi ha", length(normal[normal<mu-3*sg | normal>mu+3*sg]), 
       "observacions que están més enllá de la mitjana i 3 desviacions estàndard") 
 
-#Ratio de sharpe
+# Ràtio de sharpe
 sharpe <- ma/sa
 sharpe
 
@@ -250,7 +240,6 @@ s1$par.ses
 ci.pos <- c(s1$par.ests[1]-2*s1$par.ses[1], s1$par.ests[1]+2*s1$par.ses[1])
 paste0("El paràmetre estimat per evir és ", round(s1$par.ests[1],3), " amb un interval de confiança de [", round(ci.pos[1],3), ",", round(ci.pos[2],3), "]")
 
-
 # Cua negativa
 aln <- sd(neg.ret)/mean(neg.ret)
 aln
@@ -263,25 +252,27 @@ s2$par.ses
 ci.neg <- c(s2$par.ests[1]-2*s2$par.ses[1], s2$par.ests[1]+2*s2$par.ses[1])
 paste0("El paràmetre estimat per evir és ", round(s2$par.ests[1],3), " amb un interval de confiança de [", round(ci.neg[1],3), ",", round(ci.neg[2],3), "]")
 
-# Trobar el llindar que dona elmillor ajust de PL
+# Trobar el llindar que dona el millor ajust de PL
 
 parset(pos.ret)
 parset(neg.ret)
 
+# Cua positiva 
+
 # Estimació PL
-fit1 <- parset(pos.ret)
+fit1 <- parset(pos.ret); fit1
 a1 <- fit1$alpha; a1
 xm <- fit1$min; xm
-n <- fit1$ntail
-llik1 <- n*log(a1)+n*a1*log(xm)-(a1+1)*sum(log(pos.ret[pos.ret>=xm])); llik1
+n <- fit1$ntail 
+llik1 <- n*log(a1)+n*a1*log(xm)-(a1+1)*sum(log(pos.ret[pos.ret>xm])); llik1
 
 # Estimació LPD
-fit2 <- gpd(pos.ret, threshold = xm)
+fit2 <- gpd(pos.ret, threshold=xm); fit2
 fit2$par.ests
 fit2$nllh.final
 par <- as.numeric(fit2$par.ests); par
-ah <- 1/par[1]; ah
-dh <- par[2]/par[1]-xm; dh
+ah <- 1/par[1]; ah # alpha
+dh <- par[2]/par[1]-xm; dh # sigma
 llik2 <- -fit2$nllh.final; llik2 # (canvi signe)
 
 # Valors crítics
@@ -291,26 +282,117 @@ qchisq(0.99, df=1) # Xi^2 amb 1 gl 99% confiança
 # Likelihood Ratio Test (LRT)
 LRT <- 2*(llik2-llik1); LRT
 # El test de raó de versembança diu que LRT=11.88
-# Ja que 11.88>3.84, el test és significatiu al 95% de confiança.
-# Ja que 11.88>6.63, el test és significatiu al 99% de confiança.
-# Per tant, el LRT rebutja que les dades segueixin una distribució Power-La
+# Ja que 17.22842>3.84, el test és significatiu al 95% de confiança.
+# Ja que 17.22842>6.63, el test és significatiu al 99% de confiança.
+# Per tant, el LRT rebutja que les dades segueixin una distribució Power-Law.
+# En conclusió, ens quedem amb la distribució LPD. 
 
+# Cua negativa 
+
+# Estimació PL
+fit1 <- parset(neg.ret); fit1
+a1 <- fit1$alpha; a1
+xm <- fit1$min; xm
+n <- fit1$ntail 
+llik1 <- n*log(a1)+n*a1*log(xm)-(a1+1)*sum(log(neg.ret[neg.ret>xm])); llik1
+
+# Estimació LPD
+fit2 <- gpd(neg.ret, threshold=xm); fit2
+fit2$par.ests
+fit2$nllh.final
+par <- as.numeric(fit2$par.ests); par
+ah <- 1/par[1]; ah # alpha
+dh <- par[2]/par[1]-xm; dh # sigma
+llik2 <- -fit2$nllh.final; llik2 # canvi signe
+
+# Likelihood Ratio Test (LRT)
+LRT <- 2*(llik2-llik1); LRT
+# El test de raó de versembança diu que LRT=11.88
+# Ja que 18.84034>3.84, el test és significatiu al 95% de confiança.
+# Ja que 18.84034>6.63, el test és significatiu al 99% de confiança.
+# Per tant, el LRT rebutja que les dades segueixin una distribució Power-Law.
+# En conclusió, ens quedem amb la distribució LPD.
+
+# Càlcul del llindar per la cua negativa
 tneg.ret <- tdata(neg.ret)
-thr <- thrselect(tneg.ret, m=30, nsim=1000, conf.level = 0.95)
-thr$solution # accepto que les dades són GPD perquè el p-valor=>0.05
+cvplot(tneg.ret, main="Transformed data")
+Tm(tneg.ret)
+thr <- thrselect(tneg.ret, m=30, nsim=1000, conf.level=0.95)
+thr$solution # accepto que les dades són GPD perquè el p-valor>=0.05
 cievi(nextrem=thr$solution$nextremes, evi=thr$solution$evi,  nsim=1000)
 fitpot(neg.ret, evi=abs(thr$solution$evi), nextremes=thr$solution$nextremes)
 
 llindar_final <- parset(neg.ret)$min
 
-#Calcul dels VARs
+fitpot1 <- fitpot(neg.ret, evi=abs(thr$solution$evi), nextremes=thr$solution$nextremes); fitpot1 # ercv 
+fitpot2 <- fitpot(neg.ret, evi=as.numeric(fit2$par.ests[[1]]), nextremes=fit2$n.exceed); fitpot2  # Novak (LPD)
+
+ccdfplot(neg.ret, pars=c(fitpot1, fitpot2), log="xy", main="MICROSOFT: Novak<ercv") # ercv primer, novak segon, blau tercer
+
+# Gràfics segons els paràmetres obtinguts amb threshold (fitpot1)
+xi <- -thr$solution$evi; xi
+mu <- thr$solution$threshold; mu
+beta <- fitpot1$coeff[[2]]; beta
+n <- thr$solution$nextremes
+
+X <- sort(neg.ret)
+E <- seq(1:n)/(n+1) # distribució empírica
+F <- pgpd(X, xi=xi, mu=mu, beta=beta) # distribució teòrica
+Q <- qgpd(E, xi=xi, mu=mu, beta=beta)
+
+# Funcions de distribució
+plot(X, F, main = "Funcions de distribució", col = "red", lwd=2, type="l")
+lines(X, E, col = "blue", lwd = 2, type = "l")
+legend("bottomright", legend=c("Empírica", "Teòrica"), col=c("red", "blue"), lty=1, lwd=2)
+
+# Les funcions de distribució estan solapades. Això significa que la distribució teòrica s'ajusta a la distribució empírica.
+
+# PP-plot
+plot(E, F, main="PP-plot Dow Jones", col="red", type="l", lwd=2)
+abline(0, 1, col="green")
+
+# QQ-plot
+plot(Q, X, main="QQ-plot Dow Jones", col="red", lwd=2, type="l")
+abline(0, 1, col="green")
+
+# Gràfics segons els paràmetres obtinguts amb threshold (fitpot2)
+xi <- as.numeric(fit2$par.ests[[1]])
+mu <- fit2$threshold
+beta <- as.numeric(fit2$par.ests[[2]])
+n <- fit2$n.exceed
+
+X <- sort(neg.ret[neg.ret>mu])
+E <- seq(1:n)/(n+1) # distribució empírica
+F <- pgpd(X, xi=xi, mu=mu, beta=beta) # distribució teòrica
+Q <- qgpd(E, xi=xi, mu=mu, beta=beta)
+
+# Funcions de distribució
+plot(X, F, main = "Funcions de distribució", col = "red", lwd=2, type="l")
+lines(X, E, col = "blue", lwd = 2, type = "l")
+legend("bottomright", legend=c("Empírica", "Teòrica"), col=c("red", "blue"), lty=1, lwd=2)
+
+# Les funcions de distribució estan solapades. Això significa que la distribució teòrica s'ajusta a la distribució empírica.
+
+# PP-plot
+plot(E, F, main="PP-plot Dow Jones", col="red", type="l", lwd=2)
+abline(0, 1, col="green")
+
+# QQ-plot
+plot(Q, X, main="QQ-plot Dow Jones", col="red", lwd=2, type="l")
+abline(0, 1, col="green")
+
+# Decisió del llindar escollit
+
+
+# Càlcul dels VARs
+llindar_final <- 0.02820915 # mu (codi propi PL)
 
 p_u <- length(neg.ret[neg.ret>llindar_final])/length(neg.ret)
-mod <- gpd(neg.ret, threshold = llindar_final)
+mod <- gpd(neg.ret, threshold=llindar_final)
 chi_u <- mod$par.ests[1]
 beta_u <- mod$par.ests[2]
 epsilon <- c(0.01, 0.001)
 
-Vars <- llindar_final + (beta_u/chi_u)*((p_u/epsilon)^chi_u-1)
-Vars
+vars <- llindar_final + (beta_u/chi_u)*((p_u/epsilon)^chi_u-1)
+vars
 
